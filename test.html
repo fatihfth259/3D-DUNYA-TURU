@@ -1,0 +1,6 @@
+<!DOCTYPE html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<body style="background:#07111f;color:#fff;font:18px sans-serif;padding:20px">
+<p>HTML çalışıyor</p><p id="a">WebGL kontrol ediliyor...</p>
+<script>
+try{var c=document.createElement("canvas");var g=c.getContext("webgl")||c.getContext("experimental-webgl");document.getElementById("a").textContent=g?"WebGL VAR: "+g.getParameter(g.VERSION):"WebGL YOK"}catch(e){document.getElementById("a").textContent="Hata: "+e}
+</script>
