@@ -12,9 +12,12 @@ jobs:
       - run: |
           mkdir www
           cp dunya-turu.html www/index.html
+          curl -fL -o www/three.min.js https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
+          sed -i 's#https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js#three.min.js#' www/index.html
           npm init -y
           npm i @capacitor/core @capacitor/cli @capacitor/android
           npx cap init "Dünya Turu" com.dunyaturu.app --web-dir=www
+          node -e "const f='capacitor.config.json';const c=JSON.parse(require('fs').readFileSync(f));c.backgroundColor='#07111f';require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
           npx cap add android
           npx cap sync android
       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
