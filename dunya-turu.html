@@ -1,1 +1,126 @@
 
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3D Dünya Turu</title>
+<style>
+:root{--bg:#07111f;--ink:#eaf2ff;--mut:#8fa6c6;--card:rgba(10,24,44,.82);--acc:#ffb347;--line:rgba(255,255,255,.14)}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;overflow:hidden;position:relative}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+h1{position:absolute;left:16px;top:12px;margin:0;font-size:1.25rem;pointer-events:none}
+h1 small{display:block;font-size:.78rem;font-weight:400;color:var(--mut);margin-top:2px}
+#ui{position:absolute;left:0;right:0;bottom:0;padding:12px;display:flex;flex-direction:column;gap:10px}
+#info{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;max-width:520px;min-height:64px}
+#info b{font-size:1.05rem;color:var(--acc)}
+#info p{margin:4px 0 0;font-size:.9rem;line-height:1.45}
+#row{display:flex;gap:8px;align-items:center}
+#go{flex:none;background:var(--acc);color:#1a1205;border:0;border-radius:999px;padding:10px 18px;font:inherit;font-weight:700}
+#chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.chip{flex:none;background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:8px 12px;font:inherit;font-size:.85rem}
+.chip.on{background:var(--ink);color:var(--bg)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<h1>Dünya Turu<small>Sürükle, döndür, bir noktaya dokun</small></h1>
+<div id="ui">
+  <div id="info"><b>Hoş geldin</b><p>Küreyi çevir ya da turu başlatıp 12 meşhur durağı gez.</p></div>
+  <div id="row"><button id="go">Turu başlat</button><div id="chips"></div></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+var P=[
+{n:"İstanbul",d:"İki kıtayı birbirine bağlayan şehir. Ayasofya, Boğaz ve Kapalıçarşı burada.",la:41.0,lo:29.0},
+{n:"Giza, Mısır",d:"Dört bin yılı aşkın süredir ayakta duran piramitlerin evi.",la:29.98,lo:31.13},
+{n:"Paris",d:"Eyfel Kulesi, Louvre ve Sen Nehri kıyısında kafeler.",la:48.86,lo:2.35},
+{n:"New York",d:"Özgürlük Heykeli ve gökdelenlerle dolu, hiç uyumayan şehir.",la:40.71,lo:-74.0},
+{n:"Rio de Janeiro",d:"Kurtarıcı İsa Heykeli ve Copacabana plajı.",la:-22.9,lo:-43.2},
+{n:"Machu Picchu",d:"And Dağları’nda, bulutların üstünde bir İnka kenti.",la:-13.16,lo:-72.54},
+{n:"Cape Town",d:"Masa Dağı’nın eteğinde, iki okyanusun buluştuğu şehir.",la:-33.92,lo:18.42},
+{n:"Dubai",d:"Çölün ortasında yükselen Burj Khalifa’yla rekorlar şehri.",la:25.2,lo:55.27},
+{n:"Agra, Hindistan",d:"Beyaz mermerden yapılmış Taj Mahal’e ev sahipliği yapar.",la:27.17,lo:78.04},
+{n:"Pekin",d:"Çin Seddi’ne bir saatlik uzaklıkta, Yasak Şehir’in şehri.",la:39.9,lo:116.4},
+{n:"Tokyo",d:"Neon ışıklar, tapınaklar ve dünyanın en yoğun kavşağı.",la:35.68,lo:139.69},
+{n:"Sidney",d:"Opera Binası ve liman köprüsüyle okyanus kıyısında bir şehir.",la:-33.87,lo:151.21}
+];
+var C=[
+[[-168,66],[-140,70],[-95,72],[-80,63],[-60,55],[-55,48],[-70,42],[-76,35],[-81,25],[-97,26],[-105,20],[-95,16],[-83,9],[-78,8],[-90,14],[-110,24],[-117,32],[-124,40],[-125,49],[-140,59]],
+[[-78,8],[-60,10],[-50,0],[-35,-6],[-40,-22],[-48,-28],[-58,-38],[-66,-46],[-70,-54],[-75,-48],[-73,-30],[-70,-18],[-81,-5]],
+[[-10,36],[-9,43],[-2,48],[5,53],[10,57],[20,70],[40,68],[70,73],[110,77],[140,72],[170,68],[180,65],[160,58],[140,52],[142,46],[130,42],[122,38],[122,30],[110,20],[106,10],[100,2],[98,10],[92,22],[80,14],[77,8],[72,20],[58,24],[56,26],[48,30],[35,35],[30,40],[26,38],[22,37],[15,40],[8,44],[3,41]],
+[[-17,21],[-10,35],[10,37],[32,31],[35,28],[43,12],[51,12],[40,-5],[40,-16],[33,-26],[20,-35],[14,-22],[12,-5],[8,4],[-8,5],[-17,14]],
+[[35,28],[48,30],[56,26],[58,22],[52,16],[43,13]],
+[[114,-22],[130,-12],[142,-11],[153,-26],[147,-38],[135,-35],[115,-34]],
+[[-55,60],[-20,70],[-20,82],[-60,82],[-70,76]],
+[[130,32],[140,36],[142,44],[140,41]],
+[[-180,-70],[180,-70],[180,-90],[-180,-90]]
+];
+var tc=document.createElement("canvas");tc.width=2048;tc.height=1024;var g=tc.getContext("2d");
+g.fillStyle="#0c2a4d";g.fillRect(0,0,2048,1024);
+function X(lo){return (lo+180)/360*2048}function Y(la){return (90-la)/180*1024}
+g.fillStyle="#2f8f6b";g.strokeStyle="#7fd6a8";g.lineWidth=2;
+C.forEach(function(p){g.beginPath();p.forEach(function(q,i){i?g.lineTo(X(q[0]),Y(q[1])):g.moveTo(X(q[0]),Y(q[1]))});g.closePath();g.fill();g.stroke()});
+g.strokeStyle="rgba(255,255,255,.08)";g.lineWidth=1;
+for(var i=-180;i<=180;i+=30){g.beginPath();g.moveTo(X(i),0);g.lineTo(X(i),1024);g.stroke()}
+for(var j=-60;j<=60;j+=30){g.beginPath();g.moveTo(0,Y(j));g.lineTo(2048,Y(j));g.stroke()}
+
+var cv=document.getElementById("c");
+var R=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+R.setPixelRatio(Math.min(devicePixelRatio,2));
+var S=new THREE.Scene(),cam=new THREE.PerspectiveCamera(45,1,.1,100);cam.position.z=3.6;
+S.add(new THREE.AmbientLight(0x6f86a8,.9));
+var sun=new THREE.DirectionalLight(0xffffff,.9);sun.position.set(3,2,4);S.add(sun);
+var G=new THREE.Group();S.add(G);
+G.add(new THREE.Mesh(new THREE.SphereGeometry(1,64,64),new THREE.MeshPhongMaterial({map:new THREE.CanvasTexture(tc),shininess:12})));
+S.add(new THREE.Mesh(new THREE.SphereGeometry(1.06,48,48),new THREE.MeshBasicMaterial({color:0x4aa3ff,transparent:true,opacity:.14,side:THREE.BackSide})));
+var st=[];for(var k=0;k<900;k++){var v=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize().multiplyScalar(20+Math.random()*10);st.push(v.x,v.y,v.z)}
+var sg=new THREE.BufferGeometry();sg.setAttribute("position",new THREE.Float32BufferAttribute(st,3));
+S.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:.08})));
+
+function V(la,lo,r){la*=Math.PI/180;lo*=Math.PI/180;return new THREE.Vector3(r*Math.cos(la)*Math.sin(lo),r*Math.sin(la),r*Math.cos(la)*Math.cos(lo))}
+var M=[];
+P.forEach(function(p,i){
+  var m=new THREE.Mesh(new THREE.SphereGeometry(.022,16,16),new THREE.MeshBasicMaterial({color:0xffb347}));
+  m.position.copy(V(p.la,p.lo,1.01));m.userData.i=i;G.add(m);M.push(m);
+  var h=new THREE.Mesh(new THREE.SphereGeometry(.05,16,16),new THREE.MeshBasicMaterial({visible:false}));
+  h.position.copy(m.position);h.userData.i=i;G.add(h);M.push(h);
+});
+
+var tgt={x:.3,y:-.5,z:3.6},cur=0,auto=false,timer=null,drag=false,moved=0,lx=0,ly=0;
+G.rotation.set(tgt.x,tgt.y,0);
+function size(){var w=innerWidth,h=innerHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
+addEventListener("resize",size);size();
+
+var info=document.getElementById("info"),chips=document.getElementById("chips"),go=document.getElementById("go"),cb=[];
+P.forEach(function(p,i){var b=document.createElement("button");b.className="chip";b.textContent=p.n;b.onclick=function(){stop();focus(i)};chips.appendChild(b);cb.push(b)});
+function focus(i){
+  cur=i;var p=P[i];
+  var ry=-p.lo*Math.PI/180,cr=G.rotation.y;
+  while(ry-cr>Math.PI)ry-=2*Math.PI;while(ry-cr<-Math.PI)ry+=2*Math.PI;
+  tgt.y=ry;tgt.x=p.la*Math.PI/180;tgt.z=2.5;
+  info.innerHTML="<b></b><p></p>";info.firstChild.textContent=p.n;info.lastChild.textContent=p.d;
+  cb.forEach(function(b,j){b.classList.toggle("on",j===i)});
+  cb[i].scrollIntoView({block:"nearest",inline:"center"});
+}
+function start(){auto=true;go.textContent="Turu durdur";focus(cur);timer=setInterval(function(){focus((cur+1)%P.length)},5000)}
+function stop(){auto=false;go.textContent="Turu başlat";clearInterval(timer)}
+go.onclick=function(){auto?stop():start()};
+
+cv.addEventListener("pointerdown",function(e){drag=true;moved=0;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(e.pointerId)});
+cv.addEventListener("pointermove",function(e){if(!drag)return;var dx=e.clientX-lx,dy=e.clientY-ly;lx=e.clientX;ly=e.clientY;moved+=Math.abs(dx)+Math.abs(dy);
+  tgt.y+=dx*.006;tgt.x=Math.max(-1.3,Math.min(1.3,tgt.x+dy*.006));G.rotation.y=tgt.y;G.rotation.x=tgt.x;tgt.z=3.6});
+cv.addEventListener("pointerup",function(e){drag=false;if(moved>6)return;
+  var r=cv.getBoundingClientRect(),rc=new THREE.Raycaster();
+  rc.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1),cam);
+  var h=rc.intersectObjects(M);if(h.length){stop();focus(h[0].object.userData.i)}});
+
+(function loop(t){requestAnimationFrame(loop);
+  if(!drag){G.rotation.y+=(tgt.y-G.rotation.y)*.06;G.rotation.x+=(tgt.x-G.rotation.x)*.06}
+  var zt=innerWidth/innerHeight<.8?tgt.z+1:tgt.z;cam.position.z+=(zt-cam.position.z)*.05;
+  var s=1+.25*Math.sin(t/300);M.forEach(function(m,i){if(i%2===0)m.scale.setScalar(i/2===cur?1.8*s:1)});
+  R.render(S,cam)})(0);
+</script>
+</body>
+</html>
